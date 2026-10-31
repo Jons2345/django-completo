@@ -1,0 +1,29 @@
+<!DOCTYPE html>                                   <!-- HTML normal -->
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ titulo }}</title>                   {# {{ titulo }} se reemplaza por el valor de "titulo": Mi Tienda #}
+</head>
+<body>
+    <h1>Bienvenido a {{ titulo }}</h1>            {# Otra vez imprimimos la variable titulo #}
+
+    {% if nombre %}                               {# SI la variable nombre tiene algo escrito... #}
+        <p>Hola, <strong>{{ nombre }}</strong>. Este saludo llegó por <b>POST</b>.</p>
+    {% else %}                                    {# ...SI NO (está vacía)... #}
+        <p>Escribe tu nombre y presiona Enviar. (Ahora la página llegó por <b>GET</b>.)</p>
+    {% endif %}                                   {# Todo if termina con endif #}
+
+    <form method="post">                          {# method="post": al enviar, la vista recibe request.method == "POST" #}
+        {% csrf_token %}                          {# OBLIGATORIO en todo form POST: un código secreto contra ataques #}
+        <input type="text" name="nombre" placeholder="Tu nombre">   {# name="nombre" → request.POST.get("nombre") #}
+        <button type="submit">Enviar</button>     {# Envía el formulario a esta misma página #}
+    </form>
+
+    <h2>Productos</h2>
+    <ul>
+        {% for producto in productos %}           {# PARA CADA producto de la lista productos... #}
+            <li>{{ forloop.counter }}. {{ producto|upper }}</li>   {# número de vuelta + nombre en MAYÚSCULAS #}
+        {% endfor %}                              {# Todo for termina con endfor #}
+    </ul>
+</body>
+</html>
