@@ -4,9 +4,13 @@ from .models import Categoria, Marca, Producto, Cliente, Perfil # Nuestros model
 # Forma simple: el modelo aparece en el panel
 admin.site.register(Categoria)                          # Registra Categoría
 admin.site.register(Marca)                              # Registra Marca
-admin.site.register(Cliente)                            # Registra Cliente
 admin.site.register(Perfil)                             # Registra Perfil (relación 1:1 con User)
 
+@admin.register(Cliente)
+class ClienteAdmin(admin.ModelAdmin):
+    list_display = ("nombres", "apellidos", "email", "telefono")   # Columnas. Una ManyToMany NO se puede poner aquí
+    search_fields = ("nombres", "apellidos")                         # Caja de búsqueda por nombre (la coma final es necesaria)
+    list_filter = ("nombres", "apellidos")     # Filtros en el lado derecho (aquí sí sirve la N:M)
 
 # Forma con opciones: decides qué columnas ver, por qué buscar y por qué filtrar
 @admin.register(Producto)                               # Registra Producto con la configuración de abajo
