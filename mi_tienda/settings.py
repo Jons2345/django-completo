@@ -118,7 +118,10 @@ USE_TZ = True
 STATIC_URL = "static/"                     # Ya existe: la dirección web de los archivos estáticos
 STATICFILES_DIRS = [BASE_DIR / "static"]   # ← AGREGA: la carpeta donde guardas tus CSS, JS e imágenes
 
+MEDIA_URL = "/media/"                       # la dirección web de los archivos subidos
+MEDIA_ROOT = BASE_DIR / "media"             # ← AGREGA: la carpeta donde se
 
+LOGIN_URL = "login"                       # si no está logueado, lo manda a /login/
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 

@@ -6,7 +6,8 @@
 {# ---------- Encabezado: título a la izquierda (el botón Nueva marca llega en el paso 2.14) ---------- #}
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
     <h1 class="h3 titulo-pagina m-0">{{ titulo }}</h1>
-    {# Aquí irá el botón "+ Nueva marca" #}
+        {# Un enlace siempre hace una petición GET: abre el formulario vacío #}
+    <a href="{% url 'facturacion:marca_crear' %}" class="btn btn-verde">+ Nueva marca</a>
 </div>
 
 {# ---------- Buscador: method="get" envía el texto en la URL como ?q=texto ---------- #}
@@ -36,7 +37,9 @@
                     {% endif %}
                 </td>
                 <td class="text-end">
-                    {# Aquí irán los botones Editar (paso 2.15) y Eliminar (paso 2.16) #}
+                                        {# marca.pk es el id de la marca. Se envía a la URL que espera <int:pk> #}
+                    <a href="{% url 'facturacion:marca_editar' marca.pk %}" class="btn btn-sm btn-outline-primary">Editar</a>
+                    <a href="{% url 'facturacion:marca_eliminar' marca.pk %}" class="btn btn-sm btn-outline-danger">Eliminar</a>
                 </td>
             </tr>
             {% empty %}                               {# Si la lista está vacía, se muestra esta fila #}
