@@ -1,96 +1,97 @@
-from django.http import HttpResponse, JsonResponse   # Importamos dos tipos de respuesta
-from django.shortcuts import render                  # render: responde usando un template .html
-
-from django.contrib import messages
-from django.contrib.auth import login, logout                      # abrir y cerrar sesión
-from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
-from django.shortcuts import render, redirect
-from django.utils.http import url_has_allowed_host_and_scheme      # revisa que "next" sea de nuestro sitio
-from django.views.decorators.http import require_POST  
-
-# ---------------------------------------------------------------
-# 1) HttpResponse: devuelve un texto o HTML escrito aquí mismo.
-#    Sirve para pruebas rápidas. No se usa para páginas grandes.
-# ---------------------------------------------------------------
-def saludo(request):                                   # Toda vista recibe request
-    return HttpResponse("<h1>¡Hola desde Django!</h1><p>Esto es un HttpResponse.</p>")  # Respuesta: ese HTML
+from django.contrib import messages                       # Mensajes de éxito
+from django.contrib.auth import login, logout                     # NUEVO: login() abre la sesión de un usuario
+from django.contrib.auth.forms import AuthenticationForm, UserCreationForm    # NUEVO: formulario de registro que trae Django
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import render, redirect             # NUEVO: redirect
+from django.utils.http import url_has_allowed_host_and_scheme  
+from django.views.decorators.http import require_POST     
 
 
-# ---------------------------------------------------------------
-# 2) JsonResponse: devuelve DATOS en formato JSON (no una página).
-#    Lo usan las apps móviles y JavaScript para pedir información.
-#    Recibe un diccionario de Python y lo convierte en JSON.
-# ---------------------------------------------------------------
+def saludo(request):
+    return HttpResponse("<h1>¡Hola desde Django!</h1><p>Esto es un HttpResponse.</p>")
+
+
 def info_peticion(request):
-    datos = {                                          # Armamos un diccionario con datos de la petición
-        "metodo": request.method,                      # 'GET' o 'POST'
-        "ruta": request.path,                          # la dirección visitada, por ejemplo '/info/'
-        "parametros_get": request.GET.dict(),          # lo que viene después del ? en la URL
-        "navegador": request.headers.get("User-Agent", ""),  # qué navegador usa la persona
+    datos = {
+        "metodo": request.method,
+        "ruta": request.path,
+        "parametros_get": request.GET.dict(),
+        "navegador": request.headers.get("User-Agent", ""),
+        # NUEVO: request.user dice quién está conectado. Si nadie, decimos "anónimo"
+        "usuario": request.user.username if request.user.is_authenticated else "anónimo",
     }
-    return JsonResponse(datos)                         # Lo devolvemos como JSON
-    # Para devolver una LISTA en vez de un diccionario: JsonResponse([1, 2, 3], safe=False)
+    return JsonResponse(datos)
 
 
-# ---------------------------------------------------------------
-# 3) render: junta un TEMPLATE (.html) con un CONTEXTO (diccionario de datos)
-#    y devuelve la página terminada. Es lo que usarás casi siempre.
-#    Forma: render(request, "nombre_del_template.html", contexto)
-# ---------------------------------------------------------------
 def home(request):
-    nombre = ""                                        # Empieza vacío
-
-    # ¿Cómo llegó la petición? Esta pregunta es la clave de todo el curso:
-    if request.method == "POST":                       # Si llegó por POST (el usuario envió el formulario)...
-        nombre = request.POST.get("nombre", "").strip()   # ...leemos el campo name="nombre" (strip quita espacios)
-    # Si llegó por GET (solo abrió la página), no hacemos nada especial.
-
-    contexto = {                                       # Datos que vamos a enviar al template
-        "titulo": "Mi Tienda",                         # En el HTML se usa como {{ titulo }}
-        "nombre": nombre,                              # En el HTML se usa como {{ nombre }}
-        "productos": ["Laptop", "Mouse", "Teclado"],   # Una lista para practicar el {% for %}
+    nombre = ""
+    if request.method == "POST":
+        nombre = request.POST.get("nombre", "").strip()
+    contexto = {
+        "titulo": "Mi Tienda",
+        "nombre": nombre,
+        "productos": ["Laptop", "Mouse", "Teclado"],
     }
-    return render(request, "home.html", contexto)      # Junta home.html + contexto y responde
-    
-    
+    return render(request, "home.html", contexto)
 
-# =====================================================================
-# AUTENTICACIÓN · se queda en funciones (VBF), como en la guía anterior
-# =====================================================================
 
-def ingresar(request):                                     # LOGIN
-    if request.user.is_authenticated:                      # ya inició sesión → al inicio
-        return redirect("home")
-    siguiente = request.POST.get("next") or request.GET.get("next") or ""   # la página que quería ver
-    if request.method == "POST":                           # presionó "Ingresar"
-        form = AuthenticationForm(request, data=request.POST)
-        if form.is_valid():                                # usuario y clave correctos
-            login(request, form.get_user())                # abre la sesión
+def registro(request):                                    # Crear cuenta
+    if request.user.is_authenticated:                     # Si ya inició sesión, no tiene sentido registrarse...
+        return redirect("home")                           # ...lo enviamos al inicio
+
+    if request.method == "POST":                          # ¿Presionó "Crear cuenta"?
+        form = UserCreationForm(request.POST)             # Llenamos el formulario con lo que escribió
+        if form.is_valid():                               # ¿Usuario libre y claves iguales y seguras?
+            usuario = form.save()                         # Crea el usuario con la contraseña CIFRADA
+            login(request, usuario)                       # Abre su sesión de una vez
+            messages.success(request, f"¡Bienvenido, {usuario.username}! Tu cuenta fue creada.")
+            return redirect("home")                       # Va al inicio
+    else:                                                 # Llegó por GET...
+        form = UserCreationForm()                         # ...formulario vacío
+
+    return render(request, "registration/registro.html", {"form": form})   # Muestra el formulario
+
+def ingresar(request):                                    # LOGIN. No se llama "login" para no chocar con login() de Django
+    if request.user.is_authenticated:                     # Si ya inició sesión...
+        return redirect("home")                           # ...no tiene sentido mostrarle el login
+    # next = la página que quería ver (GET: viene en la URL; POST: en el campo oculto)
+    siguiente = request.POST.get("next") or request.GET.get("next") or ""
+ 
+    if request.method == "POST":                          # ¿Presionó "Ingresar"?
+        form = AuthenticationForm(request, data=request.POST)   # OJO: primero request y luego data=
+        if form.is_valid():                               # ¿Existe el usuario y la clave es correcta?
+            usuario = form.get_user()                     # El usuario que se identificó
+            login(request, usuario)                       # Abre la sesión (cookie)
+            messages.success(request, f"Hola, {usuario.username}.")
+            # Volvemos a "next" solo si es una dirección de nuestro propio sitio
             if siguiente and url_has_allowed_host_and_scheme(siguiente, allowed_hosts={request.get_host()}):
                 return redirect(siguiente)
-            return redirect("home")
-    else:                                                  # GET: formulario vacío
-        form = AuthenticationForm(request)
+            return redirect("home")                       # Si no hay next, al inicio
+    else:                                                 # Llegó por GET...
+        form = AuthenticationForm(request)                # ...formulario vacío
+ 
     return render(request, "registration/login.html", {"form": form, "next": siguiente})
-
-
-@require_POST                                              # cerrar sesión SOLO con POST
-def salir(request):                                        # LOGOUT
-    logout(request)
-    messages.info(request, "Cerraste sesión.")
-    return redirect("login")
-
-
-def registro(request):                                     # CREAR CUENTA
-    if request.user.is_authenticated:
-        return redirect("home")
-    if request.method == "POST":
-        form = UserCreationForm(request.POST)
-        if form.is_valid():
-            usuario = form.save()                          # crea el usuario con la clave cifrada
-            login(request, usuario)
-            messages.success(request, f"¡Bienvenido, {usuario.username}!")
-            return redirect("home")
-    else:
-        form = UserCreationForm()
-    return render(request, "registration/registro.html", {"form": form})
+ 
+ 
+@require_POST                                             # Solo acepta POST. Un GET → error 405
+def salir(request):                                       # LOGOUT
+    logout(request)                                       # Cierra la sesión
+    messages.info(request, "Cerraste sesión.")            # Mensaje azul
+    return redirect("login")                              # Al formulario de login
+ 
+ 
+def registro(request):                                    # Crear cuenta
+    if request.user.is_authenticated:                     # Si ya inició sesión, no tiene sentido registrarse...
+        return redirect("home")                           # ...lo enviamos al inicio
+ 
+    if request.method == "POST":                          # ¿Presionó "Crear cuenta"?
+        form = UserCreationForm(request.POST)             # Llenamos el formulario con lo que escribió
+        if form.is_valid():                               # ¿Usuario libre y claves iguales y seguras?
+            usuario = form.save()                         # Crea el usuario con la contraseña CIFRADA
+            login(request, usuario)                       # Abre su sesión de una vez
+            messages.success(request, f"¡Bienvenido, {usuario.username}! Tu cuenta fue creada.")
+            return redirect("home")                       # Va al inicio
+    else:                                                 # Llegó por GET...
+        form = UserCreationForm()                         # ...formulario vacío
+ 
+    return render(request, "registration/registro.html", {"form": form})   # Muestra el formulario

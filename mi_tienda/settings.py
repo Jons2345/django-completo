@@ -121,7 +121,9 @@ STATICFILES_DIRS = [BASE_DIR / "static"]   # ← AGREGA: la carpeta donde guarda
 MEDIA_URL = "/media/"                       # la dirección web de los archivos subidos
 MEDIA_ROOT = BASE_DIR / "media"             # ← AGREGA: la carpeta donde se
 
-LOGIN_URL = "login"                       # si no está logueado, lo manda a /login/
+LOGIN_URL = "login"            # ¿A dónde enviar a quien entra sin sesión? (el name de la URL de login)
+LOGIN_REDIRECT_URL = "home"    # ¿A dónde ir después de iniciar sesión?
+LOGOUT_REDIRECT_URL = "login"  # ¿A dónde ir después de cerrar sesión?                      # si no está logueado, lo manda a /login/
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 

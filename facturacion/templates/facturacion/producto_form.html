@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block titulo %}{{ titulo }}{% endblock %}          {# "Nuevo producto" o "Editar producto: ..." #}
+
+{% block contenido %}
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="tarjeta">
+            <h1 class="h4 titulo-pagina mb-4">{{ titulo }}</h1>
+            <form method="post" novalidate>           {# POST a la misma dirección #}
+                {% csrf_token %}                      {# Obligatorio #}
+
+                {% for campo in form %}               {# Recorre TODOS los campos del formulario, en orden #}
+                    <div class="mb-3">
+                        {# label = texto de la etiqueta; id_for_label = id de la caja #}
+                        <label class="form-label fw-semibold" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+                        {{ campo }}                   {# Dibuja la caja, la lista o la casilla del campo #}
+                        {% for error in campo.errors %}   {# Errores de este campo, si hay #}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% endfor %}                          {# Fin del recorrido de campos #}
+
+                <button type="submit" class="btn btn-verde">{{ boton }}</button>
+                <a href="{% url 'facturacion:producto_lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
