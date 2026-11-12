@@ -23,6 +23,8 @@
                     {% if user.is_authenticated %}    {# Los módulos solo se ven si inició sesión #}
                         <li class="nav-item"><a class="nav-link" href="{% url 'facturacion:marca_lista' %}">Marcas</a></li>
                         <li class="nav-item"><a class="nav-link" href="{% url 'facturacion:producto_lista' %}">Productos</a></li>
+                         <li class="nav-item"><a class="nav-link" href="{% url 'facturacion:categoria_lista' %}">Categorías</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{% url 'facturacion:cliente_lista' %}">Clientes</a></li>
                         {# Cuando termines tus tareas, agrega aquí Categorías y Clientes #}
                     {% endif %}
                 </ul>
@@ -31,6 +33,7 @@
                 <ul class="navbar-nav align-items-lg-center gap-2">
                     {% if user.is_authenticated %}    {# CON sesión: saludo y botón para salir #}
                         <li class="nav-item navbar-text">Hola, <b>{{ user.username }}</b></li>
+                        <li class="nav-item"><a class="nav-link" href="{% url 'facturacion:mi_perfil' %}">Mi perfil</a></li>   {# Reto 5.5 #}
                         <li class="nav-item">
                             {# Cerrar sesión debe ser POST: por eso es un formulario con botón y no un enlace #}
                             <form method="post" action="{% url 'logout' %}" class="m-0">   {# action: a dónde se envía #}

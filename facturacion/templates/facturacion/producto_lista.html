@@ -6,10 +6,10 @@
 {# ---------- Encabezado ---------- #}
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
     <h1 class="h3 titulo-pagina m-0">{{ titulo }}</h1>
-        <a href="{% url 'facturacion:producto_crear' %}" class="btn btn-verde">+ Nuevo producto</a>   {# GET: formulario vacío #}
+    <a href="{% url 'facturacion:producto_crear' %}" class="btn btn-verde">+ Nuevo producto</a>   {# Un enlace = GET: formulario vacío #}
 </div>
 
-{# ---------- Buscador (igual que en marcas) ---------- #}
+{# ---------- Buscador: method="get" → la vista lo lee con request.GET.get("q") ---------- #}
 <form method="get" class="d-flex gap-2 mb-3">
     <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Buscar producto...">
     <button type="submit" class="btn btn-outline-secondary">Buscar</button>
@@ -22,32 +22,32 @@
             <tr><th>#</th><th>Producto</th><th>Marca</th><th>Categorías</th><th class="text-end">Precio</th><th class="text-end">Stock</th><th class="text-end">Acciones</th></tr>
         </thead>
         <tbody>
-            {% for producto in productos %}
+            {% for producto in page_obj %}            {# page_obj se recorre igual que una lista: solo trae los de ESTA página #}
             <tr>
-                <td>{{ page_obj.start_index|add:forloop.counter0 }}</td>   {# Numeración que sigue entre páginas #}
+                {# start_index = número del primer producto de esta página (1, 6, 11...). add le suma la vuelta (0, 1, 2...) #}
+                <td>{{ page_obj.start_index|add:forloop.counter0 }}</td>
                 <td>
-                    {# El nombre es un enlace al detalle #}
-                    <a href="{% url 'facturacion:producto_detalle' producto.pk %}" class="fw-semibold text-decoration-none">{{ producto.nombre }}</a>
-                    {% if not producto.activo %}<span class="badge bg-secondary">Inactivo</span>{% endif %}
+                    {# El nombre ahora es un enlace al detalle #}
+                    <a href="{% url 'facturacion:producto_detalle' producto.pk %}" class="fw-semibold text-decoration-none">{{ producto.nombre }}</a>                    {% if not producto.activo %}<span class="badge bg-secondary">Inactivo</span>{% endif %}
                 </td>
-                <td>{{ producto.marca.nombre }}</td>
+                <td>{{ producto.marca.nombre }}</td>              {# 1:N: del producto llegas a SU marca con un punto #}
                 <td>
-                    {# N:M: un producto tiene VARIAS categorías, por eso se recorren con un for (.all sin paréntesis) #}
+                    {# N:M: un producto tiene VARIAS categorías → se recorren con un for (.all sin paréntesis) #}
                     {% for categoria in producto.categorias.all %}
                         <span class="badge bg-light text-dark border">{{ categoria.nombre }}</span>
                     {% empty %}—{% endfor %}
                 </td>
-                <td class="text-end">${{ producto.precio }}</td>
+                <td class="text-end">${{ producto.precio }}</td>  {# El $ es texto normal; {{ }} pone el número #}
                 <td class="text-end">
-                    {% if producto.stock < 5 %}
-                        <span class="badge bg-danger">{{ producto.stock }}</span>
+                    {% if producto.stock < 5 %}                   {# Stock bajo... #}
+                        <span class="badge bg-danger">{{ producto.stock }}</span>   {# ...en rojo #}
                     {% else %}
                         {{ producto.stock }}
                     {% endif %}
                 </td>
                 <td class="text-end text-nowrap">
                     <a href="{% url 'facturacion:producto_editar' producto.pk %}" class="btn btn-sm btn-outline-primary">Editar</a>
-                    <a href="{% url 'facturacion:producto_eliminar' producto.pk %}" class="btn btn-sm btn-outline-danger">Eliminar</a>
+                    <a href="{% url 'facturacion:producto_eliminar' producto.pk %}" class="btn btn-sm btn-outline-danger">Eliminar</a>    
                 </td>
             </tr>
             {% empty %}
@@ -56,19 +56,20 @@
         </tbody>
     </table>
 </div>
+<p class="text-muted small mt-2">Total: {{ page_obj.paginator.count }} producto(s)</p>   {# count = todos, no solo los de esta página #}
 
 {# ---------- PAGINACIÓN: solo aparece si hay más de una página ---------- #}
 {% if page_obj.has_other_pages %}
 <nav class="mt-3">
     <ul class="pagination justify-content-center">    {# pagination: estilo de Bootstrap #}
         {% if page_obj.has_previous %}                {# ¿Hay página anterior? #}
-            {# Enviamos también q para no perder la búsqueda al cambiar de página #}
-            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ q }}">« Anterior</a></li>
+            {# Cada enlace es un GET con dos datos en la URL: page y q (para no perder la búsqueda). urlencode protege espacios y tildes #}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ q|urlencode }}">« Anterior</a></li>
         {% endif %}
         {# number = página actual; paginator.num_pages = total de páginas #}
         <li class="page-item disabled"><span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span></li>
         {% if page_obj.has_next %}                    {# ¿Hay página siguiente? #}
-            <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ q }}">Siguiente »</a></li>
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ q|urlencode }}">Siguiente »</a></li>
         {% endif %}
     </ul>
 </nav>

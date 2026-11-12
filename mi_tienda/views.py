@@ -51,47 +51,51 @@ def registro(request):                                    # Crear cuenta
 
     return render(request, "registration/registro.html", {"form": form})   # Muestra el formulario
 
-def ingresar(request):                                    # LOGIN. No se llama "login" para no chocar con login() de Django
-    if request.user.is_authenticated:                     # Si ya inició sesión...
-        return redirect("home")                           # ...no tiene sentido mostrarle el login
-    # next = la página que quería ver (GET: viene en la URL; POST: en el campo oculto)
+def ingresar(request):                                     # LOGIN. No la llamamos "login" porque chocaría con login() de Django
+    if request.user.is_authenticated:                      # Si ya inició sesión...
+        return redirect("home")                            # ...no tiene sentido mostrarle el login
+
+    # next = la página que quería ver antes de que lo enviáramos aquí.
+    # Con GET viene en la URL (?next=/facturacion/marcas/); con POST viene en un campo oculto del formulario.
     siguiente = request.POST.get("next") or request.GET.get("next") or ""
- 
-    if request.method == "POST":                          # ¿Presionó "Ingresar"?
+
+    if request.method == "POST":                           # ¿Presionó "Ingresar"?
         form = AuthenticationForm(request, data=request.POST)   # OJO: primero request y luego data=
-        if form.is_valid():                               # ¿Existe el usuario y la clave es correcta?
-            usuario = form.get_user()                     # El usuario que se identificó
-            login(request, usuario)                       # Abre la sesión (cookie)
+        if form.is_valid():                                # ¿El usuario existe y la contraseña es correcta?
+            usuario = form.get_user()                      # El usuario que se identificó
+            login(request, usuario)                        # Abre la sesión: el navegador recibe una cookie
             messages.success(request, f"Hola, {usuario.username}.")
-            # Volvemos a "next" solo si es una dirección de nuestro propio sitio
+            # Volvemos a "next" solo si es una dirección de nuestro propio sitio (así nadie nos envía a otra web)
             if siguiente and url_has_allowed_host_and_scheme(siguiente, allowed_hosts={request.get_host()}):
                 return redirect(siguiente)
-            return redirect("home")                       # Si no hay next, al inicio
-    else:                                                 # Llegó por GET...
-        form = AuthenticationForm(request)                # ...formulario vacío
- 
-    return render(request, "registration/login.html", {"form": form, "next": siguiente})
- 
- 
-@require_POST                                             # Solo acepta POST. Un GET → error 405
-def salir(request):                                       # LOGOUT
-    logout(request)                                       # Cierra la sesión
-    messages.info(request, "Cerraste sesión.")            # Mensaje azul
-    return redirect("login")                              # Al formulario de login
- 
- 
-def registro(request):                                    # Crear cuenta
-    if request.user.is_authenticated:                     # Si ya inició sesión, no tiene sentido registrarse...
-        return redirect("home")                           # ...lo enviamos al inicio
- 
-    if request.method == "POST":                          # ¿Presionó "Crear cuenta"?
-        form = UserCreationForm(request.POST)             # Llenamos el formulario con lo que escribió
-        if form.is_valid():                               # ¿Usuario libre y claves iguales y seguras?
-            usuario = form.save()                         # Crea el usuario con la contraseña CIFRADA
-            login(request, usuario)                       # Abre su sesión de una vez
+            return redirect("home")                        # Si no hay next, al inicio
+        # Si NO es válido, baja al render: el template muestra "Usuario o contraseña incorrectos"
+    else:                                                  # Llegó por GET...
+        form = AuthenticationForm(request)                 # ...formulario vacío
+
+    contexto = {"form": form, "next": siguiente}
+    return render(request, "registration/login.html", contexto)
+
+
+@require_POST
+def salir(request):                                        # LOGOUT (solo POST)
+    logout(request)
+    messages.info(request, "Cerraste sesión.")
+    return redirect("login")
+
+
+def registro(request):                                     # NUEVO: crear cuenta
+    if request.user.is_authenticated:                      # Si ya inició sesión, no tiene sentido registrarse...
+        return redirect("home")                            # ...lo enviamos al inicio
+
+    if request.method == "POST":                           # ¿Presionó "Crear cuenta"?
+        form = UserCreationForm(request.POST)              # Llenamos el formulario con lo que escribió
+        if form.is_valid():                                # ¿Usuario libre y contraseñas iguales y seguras?
+            usuario = form.save()                          # Crea el usuario con la contraseña CIFRADA
+            login(request, usuario)                        # Abre su sesión de una vez
             messages.success(request, f"¡Bienvenido, {usuario.username}! Tu cuenta fue creada.")
-            return redirect("home")                       # Va al inicio
-    else:                                                 # Llegó por GET...
-        form = UserCreationForm()                         # ...formulario vacío
- 
-    return render(request, "registration/registro.html", {"form": form})   # Muestra el formulario
+            return redirect("home")
+    else:                                                  # Llegó por GET...
+        form = UserCreationForm()                          # ...formulario vacío
+
+    return render(request, "registration/registro.html", {"form": form})

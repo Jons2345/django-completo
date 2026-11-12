@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block titulo %}{{ titulo }}{% endblock %}
+
+{% block contenido %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="tarjeta text-center">
+            <h1 class="h4 mb-3">¿Eliminar la categoría <span class="text-danger">{{ categoria.nombre }}</span>?</h1>
+            {# Aviso: con N:M solo se quita la relación; los productos NO se borran #}
+            {% if total_productos %}
+                <div class="alert alert-warning">Se quitará de {{ total_productos }} producto{{ total_productos|pluralize }}. Los productos no se borran.</div>
+            {% endif %}
+            <p class="text-muted">Esta acción no se puede deshacer.</p>
+            {# El botón envía un POST a esta misma dirección: ahí la vista sí elimina #}
+            <form method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger">Sí, eliminar</button>
+                <a href="{% url 'facturacion:categoria_lista' %}" class="btn btn-outline-secondary">No, volver</a>   {# GET: vuelve sin borrar #}
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

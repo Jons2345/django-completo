@@ -1,5 +1,5 @@
 from django import forms                         # Herramientas de formularios de Django
-from .models import Marca,Producto                        # El modelo del que sale el formulario
+from .models import Marca, Producto, Categoria, Cliente, Perfil                        # El modelo del que sale el formulario
 
 
 class MarcaForm(forms.ModelForm):                # ModelForm: formulario construido desde un modelo
@@ -18,14 +18,6 @@ class MarcaForm(forms.ModelForm):                # ModelForm: formulario constru
             "activo": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
         
-    widgets = {                              # widgets: CÓMO se dibuja cada campo en HTML
-            # TextInput = <input type="text">. attrs agrega atributos HTML: aquí la clase de Bootstrap
-            "nombre": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ej: Samsung"}),
-            "pais_origen": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ej: Corea del Sur"}),
-            # CheckboxInput = <input type="checkbox">. form-check-input es la clase de Bootstrap para casillas
-            "activo": forms.CheckboxInput(attrs={"class": "form-check-input"}),
-        }
-
     def clean_nombre(self):                      # Validación propia del campo "nombre" (clean_ + nombre del campo)
         nombre = self.cleaned_data["nombre"].strip()   # cleaned_data: los datos ya revisados. strip quita espacios
         if len(nombre) < 2:                      # Si tiene menos de 2 letras...
@@ -59,3 +51,70 @@ class ProductoForm(forms.ModelForm):                     # NUEVO: formulario de 
         if precio <= 0:                                  # Si es 0 o negativo...
             raise forms.ValidationError("El precio debe ser mayor que 0.")   # ...error en rojo bajo el campo
         return precio       
+    
+    
+class CategoriaForm(forms.ModelForm):
+    class Meta:
+        model = Categoria                                # Sale del modelo Categoria
+        fields = ["nombre", "descripcion", "activo"]     # Los 3 campos del modelo, en este orden
+        labels = {
+            "nombre": "Nombre de la categoría",
+            "descripcion": "Descripción",
+        }
+        widgets = {
+            "nombre": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ej: Laptops"}),
+            # Textarea = caja GRANDE de varias líneas (la misma que usamos en ProductoForm)
+            "descripcion": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+            "activo": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
+
+    def clean_nombre(self):                              # Validación propia del campo "nombre"
+        nombre = self.cleaned_data["nombre"].strip()     # Quitamos espacios al inicio y al final
+        if len(nombre) < 3:                              # Regla 1: mínimo 3 letras
+            raise forms.ValidationError("El nombre debe tener al menos 3 letras.")
+        # Regla 2: la primera letra en mayúscula. Si escribe "ofertas", lo arreglamos a "Ofertas"
+        # (capitalize() pone la 1ra letra en mayúscula y el resto en minúscula)
+        return nombre.capitalize()
+        # OJO: que no se repita lo revisa solo el unique=True del modelo
+
+
+# ---------------------------------------------------------------------
+# CLIENTE · base: ProductoForm (paso 3.2)
+# ---------------------------------------------------------------------
+class ClienteForm(forms.ModelForm):
+    class Meta:
+        model = Cliente
+        # Todos los campos MENOS fecha_registro: esa se llena sola (auto_now_add=True)
+        fields = ["cedula", "nombres", "apellidos", "email", "telefono", "direccion"]
+        widgets = {
+            "cedula": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ej: 0912345678", "maxlength": "10"}),
+            "nombres": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ej: Ana María"}),
+            "apellidos": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ej: Pérez López"}),
+            "email": forms.EmailInput(attrs={"class": "form-control", "placeholder": "Ej: ana@correo.com"}),
+            "telefono": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ej: 0991234567"}),
+            "direccion": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ej: Av. Principal 123"}),
+        }
+
+    def clean_cedula(self):                              # Validación propia de la cédula (como clean_precio)
+        cedula = self.cleaned_data["cedula"].strip()     # El texto que escribió, sin espacios
+        if not cedula.isdigit():                         # isdigit() → True solo si TODOS son números
+            raise forms.ValidationError("La cédula debe tener solo números.")
+        if len(cedula) != 10:                            # len() cuenta los caracteres
+            raise forms.ValidationError("La cédula debe tener exactamente 10 dígitos.")
+        return cedula                                    # Que no se repita lo revisa unique=True del modelo
+
+
+# ---------------------------------------------------------------------
+# PERFIL · reto 1:1. Sin el campo "usuario": ese lo pone la vista (request.user)
+# ---------------------------------------------------------------------
+class PerfilForm(forms.ModelForm):
+    class Meta:
+        model = Perfil
+        fields = ["cedula", "telefono", "direccion", "cargo"]   # NO va "usuario": nadie lo elige
+        widgets = {
+            "cedula": forms.TextInput(attrs={"class": "form-control", "maxlength": "10"}),
+            "telefono": forms.TextInput(attrs={"class": "form-control"}),
+            "direccion": forms.TextInput(attrs={"class": "form-control"}),
+            "cargo": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ej: Vendedor"}),
+        }
+

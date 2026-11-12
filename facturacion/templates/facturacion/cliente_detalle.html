@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block titulo %}{{ titulo }}{% endblock %}
+
+{% block contenido %}
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="tarjeta">
+            <h1 class="h4 titulo-pagina mb-4">{{ cliente.apellidos }} {{ cliente.nombres }}</h1>
+            <dl class="row mb-4">                      {# dl = lista de "dato: valor" #}
+                <dt class="col-sm-4">Cédula</dt>          <dd class="col-sm-8">{{ cliente.cedula }}</dd>
+                <dt class="col-sm-4">Correo</dt>          <dd class="col-sm-8">{{ cliente.email|default:"—" }}</dd>
+                <dt class="col-sm-4">Teléfono</dt>        <dd class="col-sm-8">{{ cliente.telefono|default:"—" }}</dd>
+                <dt class="col-sm-4">Dirección</dt>       <dd class="col-sm-8">{{ cliente.direccion|default:"—" }}</dd>
+                <dt class="col-sm-4">Registrado el</dt>   <dd class="col-sm-8">{{ cliente.fecha_registro|date:"d/m/Y H:i" }}</dd>
+            </dl>
+            <a href="{% url 'facturacion:cliente_editar' cliente.pk %}" class="btn btn-outline-primary">Editar</a>
+            <a href="{% url 'facturacion:cliente_lista' %}" class="btn btn-outline-secondary">Volver</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

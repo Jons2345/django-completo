@@ -1,15 +1,11 @@
 from django.contrib.auth.decorators import login_required   # ← NUEVO, junto a las demás importaciones
-from django.contrib.auth.mixins import LoginRequiredMixin   # ← NUEVO, junto a las demás importaciones
+from django.core.paginator import Paginator                # NUEVO: corta una lista en páginas
 from django.contrib import messages                        # Para mostrar mensajes de éxito o error
-from django.db.models import ProtectedError                # Error que sale al borrar una marca con productos
+from django.db.models import ProtectedError, Q                # Error que sale al borrar una marca con productos
 from django.shortcuts import render, redirect, get_object_or_404   # render: mostrar página; redirect: ir a otra; get_object_or_404: buscar o mostrar 404
-from django.urls import reverse_lazy                      # NUEVO: name de URL → dirección (para atributos de clase)
-from django.views.generic import (                        # NUEVO: las 5 vistas genéricas de Django
-    ListView, CreateView, UpdateView, DetailView, DeleteView,
-)
 
-from .forms import MarcaForm, ProductoForm                                # Nuestro formulario
-from .models import Marca, Producto                                  # Nuestro modelo
+from .forms import MarcaForm, ProductoForm, CategoriaForm, ClienteForm, PerfilForm   # Nuestros formularios
+from .models import Marca, Producto, Categoria, Cliente, Perfil                      # Nuestros modelos# Nuestro modelo
 
 # =====================================================================
 # MARCAS · Vistas Basadas en Funciones (VBF)
@@ -17,59 +13,41 @@ from .models import Marca, Producto                                  # Nuestro m
 
 @login_required          # ← Antes de ejecutar marca_lista revisa la sesión. Sin sesión → /login/?next=...
 def marca_lista(request):                                  # READ: muestra todas las marcas
-    q = request.GET.get("q", "")                           # 1. Leemos el buscador: /facturacion/marcas/?q=sam (si no hay, queda "")
-    marcas = Marca.objects.all()                           # 2. Pedimos todas las marcas a la base de datos
+    q = request.GET.get("q", "")                           # Buscador: ?q=sam
+    marcas = Marca.objects.all()
+    if q:
+        marcas = marcas.filter(nombre__icontains=q)
+    contexto = {"titulo": "Marcas", "marcas": marcas, "q": q}
+    return render(request, "facturacion/marca_lista.html", contexto)
 
-    if q:                                                  # 3. Si el usuario escribió algo en el buscador...
-        marcas = marcas.filter(nombre__icontains=q)        #    ...dejamos solo las que contienen ese texto
-
-    contexto = {                                           # 4. Datos que enviamos al template
-        "titulo": "Marcas",                                #    → {{ titulo }}
-        "marcas": marcas,                                  #    → {% for marca in marcas %}
-        "q": q,                                            #    → para que el buscador no se borre
-    }
-    return render(request, "facturacion/marca_lista.html", contexto)   # 5. Mostramos la página
 
 @login_required          # ← Pónselo a las 4 funciones de marcas
-def marca_crear(request):                                  # CREATE: crear una marca nueva
-
-    if request.method == "POST":                           # ¿El usuario presionó "Guardar"? (llegó por POST)
-        form = MarcaForm(request.POST)                     # 1. Llenamos el formulario con lo que escribió
-        if form.is_valid():                                # 2. ¿Los datos están bien? (obligatorios, únicos, clean_nombre)
-            marca = form.save()                            # 3. Guardamos en la base de datos (save devuelve la marca)
-            messages.success(request, f"Marca «{marca.nombre}» creada correctamente.")   # 4. Mensaje verde
-            return redirect("facturacion:marca_lista")     # 5. Vamos a la lista. Así, si recarga, no se guarda dos veces
-        # Si NO es válido, no entra al if: baja hasta el render y muestra el formulario CON errores
-
-    else:                                                  # Si llegó por GET (solo abrió la página)...
-        form = MarcaForm()                                 # ...creamos un formulario vacío
-
-    contexto = {                                           # Datos para el template
-        "titulo": "Nueva marca",                           # Título de la página
-        "form": form,                                      # El formulario (vacío o con errores)
-        "boton": "Guardar",                                # Texto del botón
-    }
+def marca_crear(request):                                  # CREATE
+    if request.method == "POST":                           # POST: guardar
+        form = MarcaForm(request.POST)
+        if form.is_valid():
+            marca = form.save()
+            messages.success(request, f"Marca «{marca.nombre}» creada correctamente.")
+            return redirect("facturacion:marca_lista")
+    else:                                                  # GET: formulario vacío
+        form = MarcaForm()
+    contexto = {"titulo": "Nueva marca", "form": form, "boton": "Guardar"}
     return render(request, "facturacion/marca_form.html", contexto)
 
+
 @login_required 
-def marca_editar(request, pk):                             # UPDATE. pk llega desde la URL: /marcas/editar/3/ → pk=3
-    marca = get_object_or_404(Marca, pk=pk)                # 1. Buscamos la marca. Si no existe → página 404
-
-    if request.method == "POST":                           # 2. ¿Presionó "Actualizar"?
-        form = MarcaForm(request.POST, instance=marca)     #    Datos nuevos + la marca que vamos a cambiar
-        if form.is_valid():                                #    ¿Están bien?
-            form.save()                                    #    Actualiza (UPDATE), no crea una nueva
+def marca_editar(request, pk):                             # UPDATE
+    marca = get_object_or_404(Marca, pk=pk)
+    if request.method == "POST":
+        form = MarcaForm(request.POST, instance=marca)
+        if form.is_valid():
+            form.save()
             messages.success(request, f"Marca «{marca.nombre}» actualizada.")
-            return redirect("facturacion:marca_lista")     #    Volvemos a la lista
-    else:                                                  # 3. Llegó por GET...
-        form = MarcaForm(instance=marca)                   #    ...formulario lleno con los datos actuales
-
-    contexto = {
-        "titulo": f"Editar marca: {marca.nombre}",
-        "form": form,
-        "boton": "Actualizar",
-    }
-    return render(request, "facturacion/marca_form.html", contexto)   # ¡El mismo template de crear!
+            return redirect("facturacion:marca_lista")
+    else:
+        form = MarcaForm(instance=marca)
+    contexto = {"titulo": f"Editar marca: {marca.nombre}", "form": form, "boton": "Actualizar"}
+    return render(request, "facturacion/marca_form.html", contexto)
 
 
 @login_required 
@@ -93,100 +71,241 @@ def marca_eliminar(request, pk):                           # DELETE
 
 
 # =====================================================================
-# PRODUCTOS · Vistas Basadas en Clases (VBC)
+# PRODUCTOS · Vistas Basadas en Funciones (VBF)
 # =====================================================================
+@login_required
+def producto_lista(request):                               # READ: lista de productos con buscador y páginas
+    q = request.GET.get("q", "")                           # 1. Texto del buscador: /productos/?q=laptop (si no hay, "")
 
-class ProductoListView(LoginRequiredMixin, ListView):                          # Heredamos de ListView: ya sabe listar registros
-    # ---------- ATRIBUTOS (configuración) ----------
-    model = Producto                                       # ¿Qué tabla lista? La de productos
-    template_name = "facturacion/producto_lista.html"      # ¿Qué HTML usa para mostrarla?
-    context_object_name = "productos"                      # Nombre de la lista en el HTML: {% for producto in productos %}
-    paginate_by = 5                                        # Muestra 5 por página y envía page_obj al template
+    productos = (                                          # 2. Pedimos los productos a la base de datos
+        Producto.objects
+        .select_related("marca")                           #    1:N → trae la marca en la MISMA consulta (JOIN)
+        .prefetch_related("categorias")                    #    N:M → trae todas las categorías en UNA consulta extra
+    )                                                      #    Sin estas 2 líneas la tabla haría 2 consultas POR CADA producto
 
-    # ---------- MÉTODOS (cambiamos dos pasos) ----------
-    def get_queryset(self):                                # Paso que decide QUÉ productos se muestran
-        q = self.request.GET.get("q", "")                  # Leemos el buscador. En una clase, request está en self.request
-        productos = Producto.objects.all()                 # Empezamos con todos los productos
-        if q:                                              # Si el usuario escribió algo...
-            productos = productos.filter(nombre__icontains=q)   # ...dejamos solo los que contienen ese texto
-        return productos                                   # Devolvemos la lista: ListView la pagina y la manda al HTML
+    if q:                                                  # 3. Si escribió algo en el buscador...
+        productos = productos.filter(nombre__icontains=q)  #    ...dejamos solo los que contienen ese texto
 
-    def get_context_data(self, **kwargs):                  # Paso que arma los datos que recibe el HTML
-        contexto = super().get_context_data(**kwargs)      # 1. Pedimos a ListView lo que ya preparó (productos, page_obj)
-        contexto["titulo"] = "Productos"                   # 2. Agregamos el título → {{ titulo }}
-        contexto["q"] = self.request.GET.get("q", "")      # 3. Agregamos lo buscado → para que no se borre del buscador
-        return contexto                                    # 4. Entregamos todo junto
+    paginador = Paginator(productos, 5)                    # 4. Corta la lista de 5 en 5
+    numero = request.GET.get("page")                       # 5. ¿Qué página pidió? /productos/?page=2 (si no hay, None)
+    page_obj = paginador.get_page(numero)                  # 6. Esa página. Si piden ?page=abc da la 1; si piden ?page=99, la última
+
+    contexto = {
+        "titulo": "Productos",                             # → {{ titulo }}
+        "page_obj": page_obj,                              # → {% for producto in page_obj %} (solo trae los 5 de esta página)
+        "q": q,                                            # → para que el buscador no se borre
+    }
+    return render(request, "facturacion/producto_lista.html", contexto)                              # 4. Entregamos todo junto
     
+@login_required
+def producto_crear(request):                               # CREATE: crear un producto nuevo
+
+    if request.method == "POST":                           # ¿Presionó "Guardar"? (llegó por POST)
+        form = ProductoForm(request.POST)                  # 1. Llenamos el formulario con lo que envió
+        if form.is_valid():                                # 2. ¿Todo bien? (obligatorios, marca existe, clean_precio...)
+            producto = form.save()                         # 3. INSERT del producto + INSERT de sus categorías (N:M)
+            messages.success(request, f"Producto «{producto.nombre}» creado.")
+            return redirect("facturacion:producto_lista")  # 4. A la lista (Post/Redirect/Get)
+        # Si NO es válido, baja hasta el render y muestra el formulario CON errores
+
+    else:                                                  # Llegó por GET (abrió la página)...
+        form = ProductoForm()                              # ...formulario vacío
+
+    contexto = {
+        "titulo": "Nuevo producto",
+        "form": form,                                      # Vacío (GET) o con datos y errores (POST inválido)
+        "boton": "Guardar",
+    }
+    return render(request, "facturacion/producto_form.html", contexto)
+
+@login_required
+def producto_editar(request, pk):                          # UPDATE. pk viene de la URL: /productos/editar/7/ → pk=7
+    producto = get_object_or_404(Producto, pk=pk)          # 1. Buscamos el producto. Si no existe → página 404
+
+    if request.method == "POST":                           # 2. ¿Presionó "Actualizar"?
+        form = ProductoForm(request.POST, instance=producto)   # Datos nuevos + el producto que vamos a cambiar
+        if form.is_valid():
+            form.save()                                    # UPDATE del producto y reemplaza sus categorías por las marcadas
+            messages.success(request, f"Producto «{producto.nombre}» actualizado.")
+            return redirect("facturacion:producto_lista")
+        messages.error(request, "Revisa los campos marcados en rojo.")   # Solo llega aquí si NO es válido
+    else:                                                  # 3. Llegó por GET...
+        form = ProductoForm(instance=producto)             #    ...formulario LLENO con los datos actuales (y sus casillas marcadas)
+
+    contexto = {
+        "titulo": f"Editar producto: {producto.nombre}",
+        "form": form,
+        "boton": "Actualizar",
+    }
+    return render(request, "facturacion/producto_form.html", contexto)   # El mismo template de crear
+
+@login_required
+def producto_detalle(request, pk):                         # READ (uno): la ficha de un producto
+    producto = get_object_or_404(Producto, pk=pk)          # Buscamos el producto número pk o mostramos 404
+    contexto = {"producto": producto}                      # Solo necesitamos enviar el producto
+    return render(request, "facturacion/producto_detalle.html", contexto)
+    # Esta vista solo atiende GET: no tiene formulario, así que no pregunta por request.method
+
+@login_required
+def producto_eliminar(request, pk):                        # DELETE
+    producto = get_object_or_404(Producto, pk=pk)          # Buscamos el producto o mostramos 404
+
+    if request.method == "POST":                           # ¿Presionó "Sí, eliminar"?
+        nombre = producto.nombre                           # Guardamos el nombre para el mensaje
+        producto.delete()                                  # DELETE del producto y de sus filas en la tabla intermedia
+        messages.success(request, f"Producto «{nombre}» eliminado.")   # (la marca y las categorías NO se borran)
+        return redirect("facturacion:producto_lista")
+
+    # Llegó por GET: mostramos la pregunta "¿Seguro?"
+    contexto = {"titulo": "Eliminar producto", "producto": producto}
+    return render(request, "facturacion/producto_eliminar.html", contexto)
 
 
-class ProductoCreateView(LoginRequiredMixin, CreateView):                      # Heredamos de CreateView: ya sabe mostrar y guardar un formulario
-    model = Producto                                       # ¿Qué tabla? Productos
-    form_class = ProductoForm                              # ¿Qué formulario? El de forms.py
-    template_name = "facturacion/producto_form.html"       # ¿Qué HTML muestra el formulario?
-    success_url = reverse_lazy("facturacion:producto_lista")   # ¿A dónde ir después de guardar? A la lista
-
-    # Lo que hace CreateView sola (no lo escribes):
-    #   GET  → crea form_class vacío y dibuja template_name
-    #   POST → llena el form con request.POST y revisa form.is_valid()
-    #            válido   → llama a form_valid()   → guarda → va a success_url
-    #            inválido → llama a form_invalid() → vuelve a dibujar el form con errores
-
-    def get_context_data(self, **kwargs):                  # Datos extra para el HTML
-        contexto = super().get_context_data(**kwargs)      # Lo que CreateView ya preparó (incluye "form")
-        contexto["titulo"] = "Nuevo producto"              # → {{ titulo }}
-        contexto["boton"] = "Guardar"                      # → {{ boton }}
-        return contexto
-
-    def form_valid(self, form):                            # Se ejecuta SOLO si el formulario está bien
-        messages.success(self.request, f"Producto «{form.instance.nombre}» creado.")   # form.instance = el producto
-        return super().form_valid(form)                    # La versión original: guarda (también las categorías N:M) y redirige
-    
-
-class ProductoUpdateView(LoginRequiredMixin, UpdateView):                      # Heredamos de UpdateView: ya sabe editar un registro
-    model = Producto                                       # ¿Qué tabla?
-    form_class = ProductoForm                              # El mismo formulario de crear
-    template_name = "facturacion/producto_form.html"       # ¡El mismo template de crear!
-    success_url = reverse_lazy("facturacion:producto_lista")   # A dónde ir al terminar
-
-    # Lo que hace UpdateView sola:
-    #   toma el <int:pk> de la URL, busca ese producto y lo guarda en self.object
-    #   GET  → formulario LLENO con los datos de self.object
-    #   POST → revisa y actualiza ese mismo producto (no crea uno nuevo)
-
-    def get_context_data(self, **kwargs):
-        contexto = super().get_context_data(**kwargs)      # Incluye "form" y "object"
-        contexto["titulo"] = f"Editar producto: {self.object.nombre}"   # self.object = el producto que editamos
-        contexto["boton"] = "Actualizar"
-        return contexto
-
-    def form_valid(self, form):                            # Si los datos están bien...
-        messages.success(self.request, f"Producto «{form.instance.nombre}» actualizado.")   # ...mensaje verde
-        return super().form_valid(form)                    # ...y la versión original guarda y redirige
-
-    def form_invalid(self, form):                          # Si los datos tienen errores...
-        messages.error(self.request, "Revisa los campos marcados en rojo.")   # ...mensaje rojo arriba
-        return super().form_invalid(form)                  # ...y la versión original vuelve a mostrar el form
-    
-
-class ProductoDetailView(LoginRequiredMixin, DetailView):                      # Heredamos de DetailView: muestra UN registro
-    model = Producto                                       # ¿Qué tabla?
-    template_name = "facturacion/producto_detalle.html"    # ¿Qué HTML?
-    context_object_name = "producto"                       # En el HTML: {{ producto.nombre }}
-    # No necesita métodos: busca el producto por el pk de la URL y lo envía al template
-    
+@login_required
+def categoria_lista(request):                              # READ: solo atiende GET
+    # GET: llega al abrir la página o al presionar "Buscar" (el form del buscador es method="get")
+    q = request.GET.get("q", "")                           # 1. Texto del buscador: /categorias/?q=lap (si no hay, "")
+    categorias = Categoria.objects.prefetch_related("productos")   # 2. Todas + sus productos en UNA consulta extra
+    if q:                                                  # 3. Si buscó algo...
+        categorias = categorias.filter(nombre__icontains=q)   # ...solo las que contienen ese texto en el nombre
+    contexto = {"titulo": "Categorías", "categorias": categorias, "q": q}
+    return render(request, "facturacion/categoria_lista.html", contexto)
 
 
-class ProductoDeleteView(LoginRequiredMixin, DeleteView):                      # Heredamos de DeleteView: pregunta y elimina
-    model = Producto                                       # ¿Qué tabla?
-    template_name = "facturacion/producto_eliminar.html"   # HTML con la pregunta "¿Seguro?"
-    context_object_name = "producto"                       # En el HTML: {{ producto.nombre }}
-    success_url = reverse_lazy("facturacion:producto_lista")   # A dónde ir después de eliminar
+@login_required
+def categoria_crear(request):                              # CREATE
+    if request.method == "POST":                           # POST: presionó "Guardar"
+        form = CategoriaForm(request.POST)                 # 1. Formulario lleno con lo que envió
+        if form.is_valid():                                # 2. ¿Pasa clean_nombre y el unique?
+            categoria = form.save()                        # 3. INSERT en facturacion_categoria
+            messages.success(request, f"Categoría «{categoria.nombre}» creada correctamente.")
+            return redirect("facturacion:categoria_lista") # 4. Post/Redirect/Get: F5 no la vuelve a crear
+        messages.error(request, "Revisa los campos marcados en rojo.")   # POST inválido: se queda con errores
+    else:                                                  # GET: abrió la página con "+ Nueva categoría"
+        form = CategoriaForm()                             # Formulario vacío
+    contexto = {"titulo": "Nueva categoría", "form": form, "boton": "Guardar"}
+    return render(request, "facturacion/categoria_form.html", contexto)
 
-    # Lo que hace DeleteView sola:
-    #   GET  → busca el producto por pk y muestra la pregunta
-    #   POST → elimina el producto y va a success_url
 
-    def form_valid(self, form):                            # Se ejecuta al confirmar (POST)
-        messages.success(self.request, f"Producto «{self.object.nombre}» eliminado.")   # self.object = el que se elimina
-        return super().form_valid(form)                    # La versión original hace el delete() y redirige
-    
+@login_required
+def categoria_editar(request, pk):                         # UPDATE. pk viene de la URL: /categorias/editar/3/
+    categoria = get_object_or_404(Categoria, pk=pk)        # Buscamos la categoría o mostramos 404
+    if request.method == "POST":                           # POST: presionó "Actualizar"
+        form = CategoriaForm(request.POST, instance=categoria)   # Datos nuevos + la categoría que se cambia
+        if form.is_valid():
+            form.save()                                    # UPDATE (no INSERT, gracias a instance)
+            messages.success(request, f"Categoría «{categoria.nombre}» actualizada.")
+            return redirect("facturacion:categoria_lista")
+        messages.error(request, "Revisa los campos marcados en rojo.")
+    else:                                                  # GET: clic en "Editar"
+        form = CategoriaForm(instance=categoria)           # Formulario LLENO con los datos actuales
+    contexto = {"titulo": f"Editar categoría: {categoria.nombre}", "form": form, "boton": "Actualizar"}
+    return render(request, "facturacion/categoria_form.html", contexto)   # El mismo template de crear
+
+
+@login_required
+def categoria_eliminar(request, pk):                       # DELETE
+    categoria = get_object_or_404(Categoria, pk=pk)
+    if request.method == "POST":                           # POST: presionó "Sí, eliminar"
+        nombre = categoria.nombre                          # Guardamos el nombre para el mensaje
+        categoria.delete()                                 # DELETE. Sin try/except: con N:M solo se borran sus filas
+                                                           # en la tabla intermedia; los productos siguen existiendo
+        messages.success(request, f"Categoría «{nombre}» eliminada.")
+        return redirect("facturacion:categoria_lista")
+    # GET: clic en "Eliminar" → mostramos la pregunta "¿Seguro?" y a cuántos productos afecta
+    contexto = {
+        "titulo": "Eliminar categoría",
+        "categoria": categoria,
+        "total_productos": categoria.productos.count(),    # related_name="productos": camino de vuelta N:M
+    }
+    return render(request, "facturacion/categoria_eliminar.html", contexto)
+
+
+# =====================================================================
+# CLIENTES · Vistas Basadas en Funciones (VBF) · Tarea 2 (5.4)
+# Base: el CRUD de Productos
+# =====================================================================
+@login_required
+def cliente_lista(request):                                # READ con buscador y páginas · solo GET
+    q = request.GET.get("q", "")                           # 1. Texto del buscador (?q=perez)
+    clientes = Cliente.objects.all()                       # 2. Todos (ordenados por apellidos, nombres: Meta.ordering)
+    if q:
+        # 3. Reto extra: objetos Q. El | significa "O": busca en apellidos O en cédula
+        clientes = clientes.filter(Q(apellidos__icontains=q) | Q(cedula__icontains=q))
+    paginador = Paginator(clientes, 5)                     # 4. De 5 en 5
+    page_obj = paginador.get_page(request.GET.get("page")) # 5. La página pedida (?page=2). Si es inválida, da la 1 o la última
+    contexto = {"titulo": "Clientes", "page_obj": page_obj, "q": q}
+    return render(request, "facturacion/cliente_lista.html", contexto)
+
+
+@login_required
+def cliente_detalle(request, pk):                          # READ (uno): ficha del cliente · solo GET
+    cliente = get_object_or_404(Cliente, pk=pk)
+    return render(request, "facturacion/cliente_detalle.html", {"titulo": str(cliente), "cliente": cliente})
+
+
+@login_required
+def cliente_crear(request):                                # CREATE
+    if request.method == "POST":                           # POST: presionó "Guardar"
+        form = ClienteForm(request.POST)                   # 1. Formulario con lo que escribió
+        if form.is_valid():                                # 2. ¿Pasa clean_cedula, el unique y el email?
+            cliente = form.save()                          # 3. INSERT (fecha_registro se llena sola)
+            messages.success(request, f"Cliente «{cliente}» creado.")
+            return redirect("facturacion:cliente_lista")   # 4. Post/Redirect/Get
+        messages.error(request, "Revisa los campos marcados en rojo.")   # POST inválido: se queda con errores
+    else:                                                  # GET: clic en "+ Nuevo cliente"
+        form = ClienteForm()                               # Formulario vacío
+    contexto = {"titulo": "Nuevo cliente", "form": form, "boton": "Guardar"}
+    return render(request, "facturacion/cliente_form.html", contexto)
+
+
+@login_required
+def cliente_editar(request, pk):                           # UPDATE
+    cliente = get_object_or_404(Cliente, pk=pk)
+    if request.method == "POST":                           # POST: presionó "Actualizar"
+        form = ClienteForm(request.POST, instance=cliente) # Datos nuevos + el cliente que se cambia
+        if form.is_valid():
+            form.save()                                    # UPDATE
+            messages.success(request, f"Cliente «{cliente}» actualizado.")
+            return redirect("facturacion:cliente_lista")
+        messages.error(request, "Revisa los campos marcados en rojo.")
+    else:                                                  # GET: clic en "Editar"
+        form = ClienteForm(instance=cliente)               # Formulario LLENO
+    contexto = {"titulo": f"Editar cliente: {cliente}", "form": form, "boton": "Actualizar"}
+    return render(request, "facturacion/cliente_form.html", contexto)
+
+
+@login_required
+def cliente_eliminar(request, pk):                         # DELETE
+    cliente = get_object_or_404(Cliente, pk=pk)
+    if request.method == "POST":                           # POST: presionó "Sí, eliminar"
+        nombre = str(cliente)                              # Guardamos el nombre antes de borrarlo
+        cliente.delete()                                   # DELETE (todavía no tiene ventas que lo protejan)
+        messages.success(request, f"Cliente «{nombre}» eliminado.")
+        return redirect("facturacion:cliente_lista")
+    # GET: clic en "Eliminar" → pregunta "¿Seguro?"
+    contexto = {"titulo": "Eliminar cliente", "cliente": cliente}
+    return render(request, "facturacion/cliente_eliminar.html", contexto)
+
+
+# =====================================================================
+# MI PERFIL · Reto (5.5) · relación 1:1 con User
+# =====================================================================
+@login_required
+def mi_perfil(request):                                    # Sin <int:pk>: el perfil es SIEMPRE el del usuario conectado
+    # get_or_create busca el perfil de este usuario; si no existe, lo crea vacío.
+    # Devuelve DOS cosas: el perfil y True/False (si lo acaba de crear)
+    perfil, creado = Perfil.objects.get_or_create(usuario=request.user)
+
+    if request.method == "POST":                           # POST: presionó "Guardar cambios"
+        form = PerfilForm(request.POST, instance=perfil)   # Mismo patrón que marca_editar: instance=perfil
+        if form.is_valid():
+            form.save()                                    # UPDATE del perfil (el usuario no cambia)
+            messages.success(request, "Tu perfil se actualizó correctamente.")
+            return redirect("facturacion:mi_perfil")       # Redirige a la MISMA página (Post/Redirect/Get)
+        messages.error(request, "Revisa los campos marcados en rojo.")
+    else:                                                  # GET: abrió "Mi perfil"
+        form = PerfilForm(instance=perfil)                 # Formulario LLENO con sus datos actuales
+    contexto = {"titulo": "Mi perfil", "form": form, "boton": "Guardar cambios"}
+    return render(request, "facturacion/mi_perfil.html", contexto)
+
