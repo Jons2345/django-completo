@@ -1,0 +1,11 @@
+{% extends "base.html" %} {% block titulo %}{{ titulo }}{% endblock %} {# "Mi perfil | Mi Tienda" #} {% block contenido %}
+{{ titulo }}
+Usuario: {{ user.username }}
+
+{# El perfil SIEMPRE es el de request.user #} {# Sin action: el POST va a la misma dirección /facturacion/mi-perfil/ #}
+{% csrf_token %} {# Obligatorio en POST #} {% for campo in form %} {# cedula, telefono, direccion, cargo (sin usuario) #}
+{{ campo.label }} {{ campo }} {% for error in campo.errors %}
+{{ error }}
+{% endfor %}
+{% endfor %} {{ boton }} {# "Guardar cambios" #} Volver
+{% endblock %}

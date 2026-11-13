@@ -24,6 +24,7 @@ from . import views                                # ingresar, salir, registro (
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("", views.home, name="home"),
     path("", TemplateView.as_view(template_name="home.html"), name="home"),   # temporal: en 3.1 será InicioView
     # ---------- AUTENTICACIÓN: funciones (VBF) ----------
     path("login/", views.ingresar, name="login"),

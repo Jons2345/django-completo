@@ -83,19 +83,3 @@ def salir(request):                                        # LOGOUT (solo POST)
     messages.info(request, "Cerraste sesión.")
     return redirect("login")
 
-
-def registro(request):                                     # NUEVO: crear cuenta
-    if request.user.is_authenticated:                      # Si ya inició sesión, no tiene sentido registrarse...
-        return redirect("home")                            # ...lo enviamos al inicio
-
-    if request.method == "POST":                           # ¿Presionó "Crear cuenta"?
-        form = UserCreationForm(request.POST)              # Llenamos el formulario con lo que escribió
-        if form.is_valid():                                # ¿Usuario libre y contraseñas iguales y seguras?
-            usuario = form.save()                          # Crea el usuario con la contraseña CIFRADA
-            login(request, usuario)                        # Abre su sesión de una vez
-            messages.success(request, f"¡Bienvenido, {usuario.username}! Tu cuenta fue creada.")
-            return redirect("home")
-    else:                                                  # Llegó por GET...
-        form = UserCreationForm()                          # ...formulario vacío
-
-    return render(request, "registration/registro.html", {"form": form})

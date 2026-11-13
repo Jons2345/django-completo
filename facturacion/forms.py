@@ -34,7 +34,7 @@ class ProductoForm(forms.ModelForm):                     # NUEVO: formulario de 
             # 1:N (ForeignKey) → lista desplegable <select>: se elige UNA sola marca
             "marca": forms.Select(attrs={"class": "form-select"}),
             # N:M (ManyToMany) → una casilla por categoría: se pueden marcar VARIAS
-            "categorias": forms.CheckboxSelectMultiple(attrs={"class": "form-check-input"}),
+            "categorias": forms.CheckboxSelectMultiple(),   # Sin clase: Bootstrap encogía la caja que envuelve las casillas
             "precio": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0"}),  # Con centavos
             "stock": forms.NumberInput(attrs={"class": "form-control", "min": "0"}),    # Entero, mínimo 0
             "activo": forms.CheckboxInput(attrs={"class": "form-check-input"}),
